@@ -69,6 +69,39 @@
         .btn-sm { padding: 8px 15px; font-size: 0.75rem; border-radius: 15px; width: 100%; margin-top: 5px; }
         .btn-action-save { background-color: var(--accent-green) !important; }
 
+        /* --- NUEVO: BOTÓN VOLVER (BARRA SUPERIOR) --- */
+        .top-action-bar {
+            padding: 10px 0;
+            margin-bottom: 10px;
+            display: none; /* Oculto por defecto */
+            animation: slideDown 0.3s ease forwards;
+        }
+        
+        .top-action-bar.visible {
+            display: block;
+        }
+
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--primary-blue);
+            font-weight: 600;
+            cursor: pointer;
+            padding: 8px 16px;
+            background: #fff;
+            border-radius: 30px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            transition: 0.3s;
+            border: 1px solid transparent;
+        }
+
+        .btn-back:hover {
+            background: var(--primary-blue);
+            color: white;
+            transform: translateX(-5px);
+        }
+
         /* --- NUEVO: BADGES DE TIPO DE TIENDA --- */
         .store-type-badge {
             font-size: 0.7rem;
@@ -979,6 +1012,17 @@
         <!-- 6. CATÁLOGO (EXPLORA TODO / TIENDA) -->
         <section id="view-catalog" class="view-section hidden container">
             
+            <!-- BARRA DE VOLVER (NUEVA) -->
+            <div id="catalog-back-bar" class="top-action-bar">
+                <div class="btn-back" onclick="goBack()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 12H5"></path>
+                        <path d="M12 19l-7-7 7-7"></path>
+                    </svg>
+                    Volver
+                </div>
+            </div>
+
             <!-- CONTENEDOR PARA EL BANNER DE LA TIENDA -->
             <div id="shop-banner-container">
                 <img src="" id="shop-banner-cover-img" class="shop-banner-cover">
@@ -1144,7 +1188,10 @@
         let currentUser = null;
         let filterSeller = null; 
         let guestInfo = null;
-        let pendingAction = null; 
+        let pendingAction = null;
+        
+        // --- NUEVO: VARIABLE PARA NAVEGACIÓN INTELIGENTE ---
+        let navigationSource = 'catalog'; // 'catalog' o 'stores'
 
         let tempProdImg = null;
         let tempStoreLogo = null;
@@ -1308,6 +1355,10 @@
             document.getElementById('search-input').value = '';
             document.getElementById('catalog-title').innerText = "Explora todo";
             document.getElementById('catalog-subtitle').innerText = "Buscando en todo Bolivia";
+            
+            // Ocultar botón volver al resetear
+            const backBar = document.getElementById('catalog-back-bar');
+            if(backBar) backBar.classList.remove('visible');
         }
 
         // --- SISTEMA DE INVITADO (INDEXEDDB) ---
@@ -1422,6 +1473,22 @@
             if(viewName === 'stores') renderStoresList();
         }
 
+        // --- NUEVA FUNCIÓN: VOLVER ATRÁS ---
+        function goBack() {
+            filterSeller = null; // Salir del modo tienda específica
+            
+            // Ocultar barra de volver
+            const backBar = document.getElementById('catalog-back-bar');
+            if(backBar) backBar.classList.remove('visible');
+
+            if (navigationSource === 'stores') {
+                showView('stores');
+            } else {
+                resetFilters();
+                showView('catalog');
+            }
+        }
+
         function login() {
             const u = document.getElementById('login-user').value;
             const p = document.getElementById('login-pass').value;
@@ -1524,7 +1591,16 @@
             });
         }
 
+        // --- MODIFICADO: RASTRAE ORIGEN DE NAVEGACIÓN ---
         function enterSellerStore(username) {
+            // Detectar vista actual
+            const activeView = document.querySelector('.view-section:not(.hidden)');
+            if(activeView && activeView.id === 'view-stores') {
+                navigationSource = 'stores';
+            } else {
+                navigationSource = 'catalog'; // Default
+            }
+
             filterSeller = username;
             showView('catalog');
         }
@@ -1905,6 +1981,7 @@
             document.getElementById('product-detail-modal').classList.remove('active');
         }
 
+        // --- MODIFICADO: GESTIONA VISIBILIDAD DE BOTÓN VOLVER ---
         function filterProducts() {
             const dept = document.getElementById('dept-filter').value;
             const search = document.getElementById('search-input').value.toLowerCase();
@@ -1912,8 +1989,10 @@
             const title = document.getElementById('catalog-title');
             const subtitle = document.getElementById('catalog-subtitle');
 
+            // Referencias al Banner de Tienda y Botón Volver
             const shopBannerContainer = document.getElementById('shop-banner-container');
             const standardHeader = document.getElementById('standard-catalog-header');
+            const backBar = document.getElementById('catalog-back-bar');
 
             grid.innerHTML = '';
 
@@ -1921,7 +2000,11 @@
             const isStoreView = !!filterSeller;
             const useMobileGrid = isMobile && isStoreView;
 
+            // --- MANEJO DE VISIBILIDAD ---
             if (filterSeller) {
+                // Estamos viendo una tienda específica
+                backBar.classList.add('visible'); // Mostrar Botón Volver
+
                 const sellerInfo = users.find(u => u.user === filterSeller);
                 
                 if (sellerInfo) {
@@ -1945,6 +2028,8 @@
                     title.innerText = "Tienda no encontrada";
                 }
             } else {
+                // Estamos en modo general
+                backBar.classList.remove('visible'); // Ocultar Botón Volver
                 shopBannerContainer.style.display = 'none';
                 standardHeader.style.display = 'block';
                 title.innerText = "Explora todo";
